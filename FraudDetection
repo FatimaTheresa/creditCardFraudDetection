@@ -1,0 +1,52 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.ensemble import IsolationForest
+from sklearn.metrics import classification_report, confusion_matrix
+
+
+df = pd.read_csv(r"C:\Users\fatim\Desktop\Dataset\creditcard.csv")  
+df.head()
+
+print("Dataset shape:", df.shape)
+print("Number of fraudulent transactions:", df[df['Class'] == 1].shape[0])
+print("Number of normal transactions:", df[df['Class'] == 0].shape[0])
+sns.countplot(data=df, x='Class')
+plt.title("Fraudulent vs Normal Transactions")
+plt.show()
+
+if 'Time' in df.columns:
+    df = df.drop(['Time'], axis=1)
+from sklearn.preprocessing import StandardScaler
+df['Amount'] = StandardScaler().fit_transform(df[['Amount']])
+
+X = df.drop(['Class'], axis=1)
+y = df['Class']
+
+iso_forest = IsolationForest(n_estimators=100, contamination=0.001, random_state=42)
+iso_forest.fit(X)
+
+# Predict: -1 = anomaly (fraud), 1 = normal
+y_pred = iso_forest.predict(X)
+y_pred = [1 if x == -1 else 0 for x in y_pred]  # Convert to 1=fraud, 0=normal
+
+print("Confusion Matrix:")
+cm = confusion_matrix(y, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Reds', xticklabels=['Normal', 'Fraud'], yticklabels=['Normal', 'Fraud'])
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.show()
+
+print("\nClassification Report:")
+print(classification_report(y, y_pred, target_names=["Normal", "Fraud"]))
+
+# Show detected frauds
+fraud_cases = df[(y == 0) & (np.array(y_pred) == 1)]
+print("False Positives (Normal classified as Fraud):", fraud_cases.shape[0])
+
+correctly_detected_fraud = df[(y == 1) & (np.array(y_pred) == 1)]
+print("Correctly detected frauds:", correctly_detected_fraud.shape[0])
+
